@@ -19,21 +19,7 @@ hide_streamlit_style = """
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
-# Tạo trạng thái lưu việc người dùng đã bấm nút bắt đầu chưa
-if "sound_enabled" not in st.session_state:
-    st.session_state.sound_enabled = False
-
-col1, col2, col3 = st.columns([1, 2, 1])
-with col2:
-    if not st.session_state.sound_enabled:
-        if st.button("🎮 Bắt đầu", use_container_width=True):
-            st.session_state.sound_enabled = True
-            st.rerun()
-
-# Truyền trạng thái âm thanh vào JavaScript thông qua biến soundActive
-sound_flag = "true" if st.session_state.sound_enabled else "false"
-
-game_code_template = """
+game_code = """
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -55,46 +41,88 @@ game_code_template = """
             color: white;
             touch-action: none;
         }
+        #gameWrapper {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            max-width: 480px;
+            max-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
         canvas {
             background: radial-gradient(circle at center, #1a1a3a 0%, #050512 100%);
             box-shadow: 0 0 30px rgba(0, 230, 255, 0.4);
             border-radius: 8px;
-            width: 100vw;
-            height: 100vh;
-            max-width: 500px;
-            max-height: 100vh;
+            width: 100%;
+            height: 100%;
             object-fit: contain;
             display: block;
+        }
+        #startOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(9, 9, 21, 0.92);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            cursor: pointer;
+        }
+        #startOverlay h1 {
+            color: #00ffff;
+            font-size: 28px;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px rgba(0,255,255,0.5);
+        }
+        #startOverlay p {
+            color: #ffffff;
+            font-size: 16px;
+            background: #00f0ff;
+            color: #090915;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-weight: bold;
+            box-shadow: 0 0 15px rgba(0,240,255,0.6);
         }
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas" width="400" height="650"></canvas>
+    <div id="gameWrapper">
+        <div id="startOverlay">
+            <h1>SPACE SHOOTER</h1>
+            <p>🎮 Chạm để Bắt đầu</p>
+        </div>
+        <canvas id="gameCanvas" width="400" height="650"></canvas>
+    </div>
 
     <script>
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
+        const startOverlay = document.getElementById("startOverlay");
 
-        const isSoundActive = __SOUND_FLAG__;
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
         let audioCtx = null;
+        let gameStarted = false;
         let bgmInterval = null;
 
         function initAudio() {
-            if (!isSoundActive) return;
             if (!audioCtx) { 
                 audioCtx = new AudioCtx(); 
-                startBackgroundMusic();
             }
             if (audioCtx.state === 'suspended') { 
                 audioCtx.resume(); 
             }
         }
 
-        // Nhạc nền không gian (ambient background music) với âm lượng nhỏ nhẹ, không lấn át
+        // Nhạc nền không gian dịu nhẹ
         function startBackgroundMusic() {
-            if (!audioCtx) return;
-            const notes = [110, 130.81, 146.83, 164.81, 196.00]; // Âm hưởng trầm ấm, không gian
+            const notes = [110, 130.81, 146.83, 164.81, 196.00];
             bgmInterval = setInterval(() => {
                 if (!audioCtx || audioCtx.state !== 'running') return;
                 try {
@@ -104,7 +132,7 @@ game_code_template = """
                     let randomNote = notes[Math.floor(Math.random() * notes.length)];
                     osc.frequency.setValueAtTime(randomNote, audioCtx.currentTime);
 
-                    gain.gain.setValueAtTime(0.015, audioCtx.currentTime); // Âm lượng nhạc nền rất nhỏ, dịu êm
+                    gain.gain.setValueAtTime(0.015, audioCtx.currentTime);
                     gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 3.0);
 
                     osc.connect(gain);
@@ -115,9 +143,9 @@ game_code_template = """
             }, 3500);
         }
 
-        // Hiệu ứng âm thanh (Sound Effects) với âm lượng vừa phải, sắc nét
+        // Hiệu ứng âm thanh vừa phải, không chói tai
         function playSound(type) {
-            if (!isSoundActive || !audioCtx) return;
+            if (!audioCtx) return;
             try {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
@@ -158,15 +186,13 @@ game_code_template = """
             } catch (e) { console.log(e); }
         }
 
-        // Tự động phát âm thanh mở màn ngay khi bật game
-        if (isSoundActive) {
-            window.addEventListener('load', () => {
-                initAudio();
-                setTimeout(() => {
-                    playSound('levelup');
-                }, 300);
-            });
-        }
+        startOverlay.addEventListener("click", () => {
+            initAudio();
+            startBackgroundMusic();
+            playSound('levelup');
+            startOverlay.style.display = "none";
+            gameStarted = true;
+        });
 
         let score = 0, lives = 3, level = 1, isGameOver = false, levelUpTimer = 0;
         let player = { x: canvas.width / 2 - 20, y: canvas.height - 70, width: 40, height: 40, speed: 7 };
@@ -189,18 +215,18 @@ game_code_template = """
         initEnemies();
 
         let keys = {};
-        window.addEventListener("keydown", (e) => { initAudio(); keys[e.key] = true; });
+        window.addEventListener("keydown", (e) => { keys[e.key] = true; });
         window.addEventListener("keyup", (e) => { keys[e.key] = false; });
 
         canvas.addEventListener("mousemove", (e) => {
-            initAudio();
+            if (!gameStarted) return;
             let rect = canvas.getBoundingClientRect();
             let scaleX = canvas.width / rect.width;
             player.x = (e.clientX - rect.left) * scaleX - player.width / 2;
         });
 
         canvas.addEventListener("touchmove", (e) => {
-            initAudio();
+            if (!gameStarted) return;
             if (e.touches.length > 0) {
                 let rect = canvas.getBoundingClientRect();
                 let scaleX = canvas.width / rect.width;
@@ -210,7 +236,7 @@ game_code_template = """
         }, { passive: false });
 
         function handleRestart() {
-            initAudio();
+            if (!gameStarted) return;
             if (isGameOver) {
                 score = 0; lives = 3; level = 1; isGameOver = false;
                 bullets = []; enemyBullets = []; initEnemies();
@@ -220,14 +246,14 @@ game_code_template = """
         canvas.addEventListener("touchend", handleRestart);
 
         setInterval(() => {
-            if (!isGameOver && levelUpTimer <= 0) {
+            if (gameStarted && !isGameOver && levelUpTimer <= 0) {
                 bullets.push({ x: player.x + player.width / 2 - 3, y: player.y, width: 6, height: 14, speed: 8 });
                 playSound('laser');
             }
         }, 220);
 
         function update() {
-            if (isGameOver) return;
+            if (!gameStarted || isGameOver) return;
             if (levelUpTimer > 0) {
                 levelUpTimer--;
                 if (levelUpTimer === 0) { initEnemies(); }
@@ -383,7 +409,5 @@ game_code_template = """
 </body>
 </html>
 """
-
-game_code = game_code_template.replace("__SOUND_FLAG__", sound_flag)
 
 components.html(game_code, height=750, scrolling=False)
