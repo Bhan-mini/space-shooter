@@ -1,58 +1,62 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
-# Cấu hình trang Streamlit
-st.set_page_config(page_title="Space Shooter - Multi-Device", page_icon="🚀", layout="centered")
+# Cấu hình ẩn thanh tiêu đề mặc định của Streamlit để giao diện rộng tuyệt đối
+st.set_page_config(page_title="Space Shooter Game", page_icon="🚀", layout="wide", initial_sidebar_state="collapsed")
 
-st.title("🚀 Space Shooter: Galaxy Defense")
-st.markdown("""
-* **🖥️ Máy tính / Laptop:** Dùng phím **A / D** hoặc **Mũi tên Trái / Phải**, hoặc dùng **chuột** kéo để di chuyển.
-* **📱 Điện thoại / Máy tính bảng:** Chạm và **kéo trực tiếp** trên màn hình để di chuyển phi thuyền.
-""")
+# Ẩn header và footer mặc định của Streamlit trên web để game tràn viền
+hide_streamlit_style = """
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    .block-container {
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+    }
+    </style>
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
+# Mã HTML/JS của game được thiết kế full màn hình (100vw x 100vh)
 game_code = """
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Space Shooter Game</title>
+    <title>Space Shooter Fullscreen</title>
     <style>
-        body {
+        body, html {
             margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100vh;
             background: #090915;
             display: flex;
-            flex-direction: column;
             justify-content: center;
             align-items: center;
-            height: 100vh;
             overflow: hidden;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             color: white;
             touch-action: none;
         }
-        #game-container {
-            position: relative;
-            width: 100%;
-            max-width: 420px;
-            display: flex;
-            justify-content: center;
-        }
         canvas {
             background: radial-gradient(circle at center, #1a1a3a 0%, #050512 100%);
-            box-shadow: 0 0 25px rgba(0, 230, 255, 0.4);
-            border-radius: 10px;
-            width: 100%;
-            height: auto;
-            max-height: 80vh;
+            box-shadow: 0 0 30px rgba(0, 230, 255, 0.4);
+            border-radius: 8px;
+            width: 100vw;
+            height: 100vh;
+            max-width: 500px;
+            max-height: 100vh;
+            object-fit: contain;
             display: block;
         }
     </style>
 </head>
 <body>
-    <div id="game-container">
-        <canvas id="gameCanvas" width="400" height="600"></canvas>
-    </div>
+    <canvas id="gameCanvas" width="400" height="650"></canvas>
 
     <script>
         const canvas = document.getElementById("gameCanvas");
@@ -109,7 +113,7 @@ game_code = """
         }
 
         let score = 0, lives = 3, level = 1, isGameOver = false, levelUpTimer = 0;
-        let player = { x: canvas.width / 2 - 20, y: canvas.height - 60, width: 40, height: 40, speed: 7 };
+        let player = { x: canvas.width / 2 - 20, y: canvas.height - 70, width: 40, height: 40, speed: 7 };
         let bullets = [], enemyBullets = [], enemies = [], particles = [];
 
         function initEnemies() {
@@ -119,8 +123,8 @@ game_code = """
             for (let r = 0; r < rows; r++) {
                 for (let c = 0; c < cols; c++) {
                     enemies.push({
-                        x: 30 + c * 50, y: 50 + r * 38,
-                        width: 36, height: 28, alive: true,
+                        x: 35 + c * 48, y: 60 + r * 38,
+                        width: 34, height: 26, alive: true,
                         shootChance: 0.0005 + (level * 0.0003)
                     });
                 }
@@ -246,9 +250,9 @@ game_code = """
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             ctx.fillStyle = "#ffffff";
-            ctx.fillRect(40, (Date.now() / 20) % canvas.height, 2, 2);
-            ctx.fillRect(180, (Date.now() / 15 + 100) % canvas.height, 1.5, 1.5);
-            ctx.fillRect(350, (Date.now() / 25 + 200) % canvas.height, 2, 2);
+            ctx.fillRect(30, (Date.now() / 20) % canvas.height, 2, 2);
+            ctx.fillRect(200, (Date.now() / 15 + 100) % canvas.height, 1.5, 1.5);
+            ctx.fillRect(340, (Date.now() / 25 + 200) % canvas.height, 2, 2);
 
             ctx.fillStyle = "#00f0ff";
             ctx.beginPath();
@@ -270,7 +274,7 @@ game_code = """
                     ctx.fillStyle = "#ff0055";
                     ctx.fillRect(e.x, e.y, e.width, e.height);
                     ctx.fillStyle = "#ffff00";
-                    ctx.fillRect(e.x + 6, e.y + 4, e.width - 12, 6);
+                    ctx.fillRect(e.x + 5, e.y + 4, e.width - 10, 6);
                 }
             });
 
@@ -283,9 +287,9 @@ game_code = """
 
             ctx.fillStyle = "#ffffff";
             ctx.font = "bold 15px Arial";
-            ctx.fillText("SCORE: " + score, 15, 25);
-            ctx.fillText("LVL: " + level, canvas.width / 2 - 20, 25);
-            ctx.fillText("LIVES: " + "❤️".repeat(lives), canvas.width - 105, 25);
+            ctx.fillText("SCORE: " + score, 15, 30);
+            ctx.fillText("LVL: " + level, canvas.width / 2 - 20, 30);
+            ctx.fillText("LIVES: " + "❤️".repeat(lives), canvas.width - 105, 30);
 
             if (levelUpTimer > 0) {
                 ctx.fillStyle = "#00ffff";
@@ -324,4 +328,4 @@ game_code = """
 </html>
 """
 
-components.html(game_code, height=650, width=430)
+components.html(game_code, height=750, scrolling=False)
