@@ -78,14 +78,44 @@ game_code_template = """
         const isSoundActive = __SOUND_FLAG__;
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
         let audioCtx = null;
+        let bgmInterval = null;
 
         function initAudio() {
             if (!isSoundActive) return;
-            if (!audioCtx) { audioCtx = new AudioCtx(); }
-            if (audioCtx.state === 'suspended') { audioCtx.resume(); }
+            if (!audioCtx) { 
+                audioCtx = new AudioCtx(); 
+                startBackgroundMusic();
+            }
+            if (audioCtx.state === 'suspended') { 
+                audioCtx.resume(); 
+            }
         }
 
-        // Âm lượng vừa phải, không bị lấn át hay chói tai
+        // Nhạc nền không gian (ambient background music) với âm lượng nhỏ nhẹ, không lấn át
+        function startBackgroundMusic() {
+            if (!audioCtx) return;
+            const notes = [110, 130.81, 146.83, 164.81, 196.00]; // Âm hưởng trầm ấm, không gian
+            bgmInterval = setInterval(() => {
+                if (!audioCtx || audioCtx.state !== 'running') return;
+                try {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    let randomNote = notes[Math.floor(Math.random() * notes.length)];
+                    osc.frequency.setValueAtTime(randomNote, audioCtx.currentTime);
+
+                    gain.gain.setValueAtTime(0.015, audioCtx.currentTime); // Âm lượng nhạc nền rất nhỏ, dịu êm
+                    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 3.0);
+
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 3.0);
+                } catch(e) {}
+            }, 3500);
+        }
+
+        // Hiệu ứng âm thanh (Sound Effects) với âm lượng vừa phải, sắc nét
         function playSound(type) {
             if (!isSoundActive || !audioCtx) return;
             try {
@@ -128,13 +158,13 @@ game_code_template = """
             } catch (e) { console.log(e); }
         }
 
-        // Tự động phát âm thanh mở màn ngay khi game tải xong
+        // Tự động phát âm thanh mở màn ngay khi bật game
         if (isSoundActive) {
             window.addEventListener('load', () => {
                 initAudio();
                 setTimeout(() => {
                     playSound('levelup');
-                }, 200);
+                }, 300);
             });
         }
 
